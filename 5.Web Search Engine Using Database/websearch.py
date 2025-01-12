@@ -20,6 +20,8 @@ def search():
 
     # connect to the sqlite database
     conn = sqlite3.connect("crawled_pages.db")
+    
+    
     cursor = conn.cursor()
 
     # search for websites that match the query in their cleaned_content
