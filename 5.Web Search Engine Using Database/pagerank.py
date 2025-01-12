@@ -18,7 +18,7 @@ graph = nx.DiGraph()
 for url in urls:
     graph.add_node(url)
 
-# retrieve the outgoing links of each website from the database
+
 # and add the edges to the graph
 for url in urls:
     cursor.execute("SELECT outgoing_links FROM pages WHERE url = ?", (url,))
