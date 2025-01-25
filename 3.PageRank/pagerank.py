@@ -2,13 +2,6 @@ import requests
 from bs4 import BeautifulSoup
 import networkx as nx
 
-urls = [
-    "http://127.0.0.1:5000/a",
-    "http://127.0.0.1:5000/b",
-    "http://127.0.0.1:5000/c",
-    "http://127.0.0.1:5000/d",
-    "http://127.0.0.1:5000/e",
-]
 
 
 outgoing_links = {}
