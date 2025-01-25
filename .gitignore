@@ -1,3 +1,8 @@
 .crawled_pages
 crawled_pages/
 *crawled_pages*
+.venv
+venv/
+*venv*
+*.db
+5.Web Search Engine Using Database/crawled_pages.db
