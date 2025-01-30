@@ -1,76 +1,73 @@
 import requests
 from bs4 import BeautifulSoup
 import sqlite3
+from urllib.parse import urljoin
+from stopwords_removal import remove_stopwords  # Assuming stopword removal script is available
 
-
-def crawler(start_url, max_pages=100):
+# Function to initialize the SQLite database
+def initialize_db():
     conn = sqlite3.connect("crawled_pages.db")
-    #connect the db
-    c = conn.cursor()
+    cursor = conn.cursor()
 
-    c.execute(
-        """
-        CREATE TABLE IF NOT EXISTS pages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            url TEXT UNIQUE,
-            content TEXT
-        )
-           
-    """
+    # Create table for storing crawled pages and their content
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS pages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        url TEXT UNIQUE,
+        content TEXT,
+        cleaned_content TEXT,
+        title TEXT,
+        outgoing_links TEXT,
+        pagerank REAL
     )
+    """)
     conn.commit()
+    conn.close()
 
-    url_frontier = [start_url]
+# Function to crawl and store page content, along with outgoing links
+def crawl_and_store_pages(seed_urls, max_pages=100):
+    conn = sqlite3.connect("crawled_pages.db")
+    cursor = conn.cursor()
 
     visited_pages = set()
+    url_frontier = seed_urls
 
     while url_frontier and len(visited_pages) < max_pages:
-        #create a list while url_frontier not empty and is less then 
-        #max_pages (<100)
-
         url = url_frontier.pop(0)
-
+        
         if url in visited_pages:
             continue
 
         print(f"Crawling {url}")
         response = requests.get(url)
-
         if response.status_code != 200:
             continue
 
         soup = BeautifulSoup(response.content, "html.parser")
+        title = soup.find("title").string if soup.find("title") else "No Title"
+        content = soup.get_text()  # Full text content
+        cleaned_content = remove_stopwords(content)  # Clean the content
+        outgoing_links = [link.get("href") for link in soup.find_all("a") if link.get("href")]
 
-        c.execute(
-            "INSERT OR IGNORE INTO pages (url, content) VALUES (?,?)", (url, str(soup))
-            
-            #avoid repeating url in the table
+    
+        cursor.execute(
+            "INSERT OR REPLACE INTO pages (url, content, cleaned_content, title, outgoing_links) VALUES (?, ?, ?, ?, ?)",
+            (url, content, cleaned_content, title, ",".join(outgoing_links))
         )
-
         conn.commit()
 
-        links = soup.find_all("a")
-        #finding all links with tag <a>
+        # Add outgoing links (URLs) to the frontier for further crawling
+        for link in outgoing_links:
+            full_link = urljoin(url, link)  # Convert relative URLs to absolute
+            if full_link not in visited_pages and "http" in full_link:
+                url_frontier.append(full_link)
 
-        for link in links:
-            href = link.get("href")
-            #remove the atribute href from tag <a> 
-            #if tag <a> doesn't have attribute href then it returns NONE
-            if href and "http" in href and href not in visited_pages:
-                #checking if href is not NONE
-                #checking if the link is url with protocol http or https
-                #if the link hasn't been open before
-               
-                url_frontier.append(href)
-                #add the link in the list
-                
-                
         visited_pages.add(url)
-        
+
     conn.close()
     print("Crawling complete.")
 
-
-seed_urls = ["https://www.bbc.co.uk/news/topics/c4y26wwj72zt"]
-for url in seed_urls:
-    crawler(url, 50)
+# Example usage: seed URLs to start crawling
+seed_urls = ["https://www.bbc.co.uk/news", "https://www.cnn.com"]
+initialize_db()  # Initialize the SQLite database with the proper table
+crawl_and_store_pages(seed_urls, max_pages=50)
